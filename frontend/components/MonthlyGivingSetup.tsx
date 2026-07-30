@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createMonthlySubscription, loadMonthlySubscriptions } from "@/lib/monthlyGiving";
 import { formatXLM, timeAgo } from "@/utils/format";
 import type { MonthlySubscription } from "@/utils/types";
@@ -28,11 +28,21 @@ export default function MonthlyGivingSetup({
   const [duration, setDuration] = useState("3");
   const [subscriptions, setSubscriptions] = useState<MonthlySubscription[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const amountId = useRef(`monthly-amount-${Math.random().toString(36).slice(2, 8)}`);
+  const amountErrorId = useRef(`monthly-amount-error-${Math.random().toString(36).slice(2, 8)}`);
 
   useEffect(() => {
     const all = loadMonthlySubscriptions();
     setSubscriptions(all.filter((sub) => sub.projectId === projectId));
   }, [projectId]);
+
+  const amountError = useMemo(() => {
+    const amount = Number.parseFloat(amountXLM);
+    if (amountXLM === "" || !Number.isFinite(amount) || amount < 1) {
+      return "Minimum recurring donation is 1 XLM";
+    }
+    return null;
+  }, [amountXLM]);
 
   const canCreate = useMemo(() => {
     const amount = Number.parseFloat(amountXLM);
@@ -73,15 +83,23 @@ export default function MonthlyGivingSetup({
 
         <div className="grid sm:grid-cols-2 gap-4">
           <div>
-            <label className="label">Amount (XLM)</label>
+            <label className="label" htmlFor={amountId.current}>Amount (XLM)</label>
             <input
+              id={amountId.current}
               type="number"
               min="1"
               step="1"
               value={amountXLM}
               onChange={(e) => setAmountXLM(e.target.value)}
-              className="input-field"
+              className={`input-field ${amountError ? "border-red-500 focus:border-red-500 focus:ring-red-500" : ""}`}
+              aria-invalid={amountError ? "true" : undefined}
+              aria-describedby={amountError ? amountErrorId.current : undefined}
             />
+            {amountError && (
+              <p id={amountErrorId.current} className="mt-1 text-sm text-red-600 font-body" role="alert">
+                {amountError}
+              </p>
+            )}
           </div>
           <div>
             <label className="label">Start Date</label>
